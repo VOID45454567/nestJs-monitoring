@@ -12,7 +12,7 @@ export const useAppStore = create<AppState>()(
     persist(
         (set) => ({
             email: '',
-            isClient: false,
+            isClient: true,
             setEmail: (email) => set({ email }),
             setIsClient: (isClient) => set({ isClient }),
         }),
