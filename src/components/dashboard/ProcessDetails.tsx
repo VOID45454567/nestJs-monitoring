@@ -1,20 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useProcessStore } from "@/store/process.store";
 import { useMachineStore } from "@/store/machine.store";
 import { createApiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/utils/cn";
-import { HealthCheck, EndpointTest } from "@/types";
+import {
+  Activity, Globe, FileText, Play, Square, RotateCw, RefreshCw,
+  AlertTriangle, Server,
+} from "lucide-react";
+import { LogsTab } from "../processDetails/LogsTab";
+import { EndpointsTab } from "../processDetails/EndpointsTab";
+import { HealthTab } from "../processDetails/HealthTab";
+import { ProcessNotSelected } from "../processDetails/ProcessNotSelected";
 
-type Tab = "health" | "tests" | "logs";
+type Tab = "health" | "endpoints" | "logs";
 
 export const ProcessDetails = () => {
   const { selectedMachine } = useMachineStore();
   const {
+    getMachineData,
     selectedProcess,
     health,
     tests,
@@ -25,11 +32,33 @@ export const ProcessDetails = () => {
     setLogs,
     setLoading,
   } = useProcessStore();
+  const machineData = getMachineData(selectedMachine.id);
+  const { servicesHealth } = machineData;
   const [activeTab, setActiveTab] = useState<Tab>("health");
+
+  const serviceConfig = selectedMachine.services?.find(
+    s => s.pm2_process_name === selectedProcess?.name
+  );
+
+  const serviceEndpoints = useMemo(() => {
+    if (!serviceConfig || !selectedProcess) return [];
+    const healthData = servicesHealth[serviceConfig.id];
+    if (!healthData || !Array.isArray(healthData.endpoints)) return [];
+    return healthData.endpoints.map(endpoint => ({
+      name: endpoint.name,
+      url: endpoint.url,
+      method: "GET" as const,
+      expected: endpoint.expected,
+      actual: endpoint.actual,
+      passed: endpoint.passed,
+      duration: endpoint.duration,
+    }));
+  }, [serviceConfig, selectedProcess, servicesHealth]);
+
+  const hasServiceHealthData = serviceEndpoints.length > 0;
 
   const loadProcessData = async () => {
     if (!selectedProcess) return;
-
     setLoading(true);
     try {
       const api = createApiClient(selectedMachine);
@@ -52,6 +81,7 @@ export const ProcessDetails = () => {
     if (!selectedProcess) return;
     try {
       const api = createApiClient(selectedMachine);
+      selectedProcess.status = action === 'start' ? 'online' : action === 'stop' ? 'stopped' : ''
       await api.processAction(selectedProcess.id, action);
       setTimeout(loadProcessData, 1000);
     } catch (err) {
@@ -60,201 +90,122 @@ export const ProcessDetails = () => {
   };
 
   useEffect(() => {
-    if (selectedProcess) {
-      loadProcessData();
-    }
+    if (selectedProcess) loadProcessData();
   }, [selectedProcess]);
 
   if (!selectedProcess) {
-    return (
-      <div className="card h-full flex items-center justify-center">
-        <p className="text-text-muted animate-pulse-slow">
-          Select a process to view details
-        </p>
-      </div>
-    );
+    return <ProcessNotSelected></ProcessNotSelected>;
   }
+
+  const isStopped = selectedProcess.status === "stopped" || selectedProcess.status === "errored";
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "health", label: "Health", icon: <Activity className="w-4 h-4" /> },
+    { id: "endpoints", label: "Endpoints", icon: <Globe className="w-4 h-4" /> },
+    { id: "logs", label: "Logs", icon: <FileText className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="card h-full animate-slide-in">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">{selectedProcess.name}</h3>
-        <div className="flex gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleProcessAction("start")}
-          >
-            Start
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => handleProcessAction("stop")}
-          >
-            Stop
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleProcessAction("restart")}
-          >
-            Restart
-          </Button>
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-bg-tertiary flex items-center justify-center">
+            <Server className="w-6 h-6 text-text-muted" />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold">{selectedProcess.name}</h3>
+            {serviceConfig && (
+              <p className="text-xs text-text-muted mt-1">
+                {serviceConfig.name} · PM2 ID: {serviceConfig.pm2ID} · PID: {selectedProcess.pid}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {isStopped ? (
+            <Button variant="primary" size="sm" onClick={() => handleProcessAction("start")}>
+              <Play className="w-4 h-4" />
+              Start
+            </Button>
+          ) : (
+            <>
+              <Button variant="danger" size="sm" onClick={() => handleProcessAction("stop")}>
+                <Square className="w-4 h-4" />
+                Stop
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => handleProcessAction("restart")}>
+                <RotateCw className="w-4 h-4" />
+                Restart
+              </Button>
+            </>
+          )}
           <Button variant="ghost" size="sm" onClick={loadProcessData}>
-            Refresh
+            <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4 border-b border-border-primary">
-        {(["health", "tests", "logs"] as Tab[]).map((tab) => (
+      {isStopped && (
+        <div className={cn(
+          "flex items-center gap-3 p-4 rounded-xl mb-4 border",
+          selectedProcess.status === "errored"
+            ? "bg-error-500/10 border-error-500/20 text-error-400"
+            : "bg-warning-500/10 border-warning-500/20 text-warning-400"
+        )}>
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium">
+              {selectedProcess.status === "errored" ? "Process is in error state" : "Process is stopped"}
+            </p>
+            <p className="text-xs opacity-80 mt-0.5">
+              {selectedProcess.status === "errored" ? "Check logs for details" : "Start the process to monitor endpoints and health"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-1 mb-5 bg-bg-tertiary rounded-xl p-1">
+        {tabs.map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "px-4 py-2 text-sm font-medium transition-all duration-200",
-              activeTab === tab
-                ? "text-primary-400 border-b-2 border-primary-400"
-                : "text-text-secondary hover:text-text-primary",
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-1 justify-center",
+              activeTab === tab.id
+                ? "bg-bg-elevated text-text-primary shadow-sm"
+                : "text-text-muted hover:text-text-secondary"
             )}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab.icon}
+            {tab.label}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-16">
           <Spinner size="lg" />
         </div>
       ) : (
         <>
           {activeTab === "health" && health && (
-            <div className="space-y-3 animate-fade-in">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-text-secondary">PM2 Status:</span>
-                <StatusBadge status={health.pm2Status || "unknown"} />
-              </div>
-
-              {health.checks?.map((check: HealthCheck, i: number) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "p-4 rounded-lg border transition-all duration-200",
-                    check.success
-                      ? "bg-success-500/10 border-success-500/30"
-                      : "bg-error-500/10 border-error-500/30",
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">
-                      {check.method} {check.route}
-                    </span>
-                    <span
-                      className={
-                        check.success ? "text-success-400" : "text-error-400"
-                      }
-                    >
-                      {check.success ? "✓" : "✗"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-muted mt-2">
-                    Expected: {check.expected} | Got: {check.result}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <HealthTab
+              health={health}
+              serviceConfig={serviceConfig}
+            >
+            </HealthTab>
           )}
 
-          {activeTab === "tests" && tests && (
-            <div className="space-y-3 animate-fade-in">
-              <div className="p-4 bg-bg-elevated/50 rounded-lg mb-4">
-                <p className="font-medium mb-2">Summary</p>
-                <div className="progress mb-2">
-                  <div
-                    className={cn(
-                      "progress-bar h-full transition-all duration-500",
-                      tests.summary.passed === tests.summary.total
-                        ? "progress-success"
-                        : "progress-warning",
-                    )}
-                    style={{
-                      width: `${(tests.summary.passed / tests.summary.total) * 100}%`,
-                    }}
-                  />
-                </div>
-                <p className="text-sm">
-                  Passed: {tests.summary.passed}/{tests.summary.total}
-                </p>
-                <p className="text-sm">
-                  PM2 Status: {tests.pm2.passed ? "✓" : "✗"}
-                </p>
-              </div>
-
-              {tests.endpoints.map((endpoint: EndpointTest, i: number) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "p-4 rounded-lg border transition-all duration-200",
-                    endpoint.passed
-                      ? "bg-success-500/10 border-success-500/30"
-                      : "bg-error-500/10 border-error-500/30",
-                  )}
-                >
-                  <div className="flex justify-between">
-                    <span className="font-medium">
-                      {endpoint.method} {endpoint.name}
-                    </span>
-                    <span
-                      className={
-                        endpoint.passed ? "text-success-400" : "text-error-400"
-                      }
-                    >
-                      {endpoint.passed ? "✓" : "✗"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-muted mt-2 space-y-1">
-                    <div className="truncate">{endpoint.url}</div>
-                    <div>
-                      Expected: {endpoint.expected} | Got: {endpoint.actual} |{" "}
-                      {endpoint.duration}ms
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {activeTab === "endpoints" && (
+            <EndpointsTab
+              hasServiceHealthData={hasServiceHealthData}
+              serviceEndpoints={serviceEndpoints}
+              tests={tests}
+              serviceConfig={serviceConfig}
+            ></EndpointsTab>
           )}
 
           {activeTab === "logs" && (
-            <div className="space-y-4 animate-fade-in">
-              <div>
-                <h4 className="font-medium mb-2 text-success-400">STDOUT</h4>
-                <pre className="bg-bg-primary p-4 rounded-lg text-xs max-h-64 overflow-auto">
-                  {logs.out.slice(-30).map((line: string, i: number) => (
-                    <div key={i} className="log-line">
-                      {line}
-                    </div>
-                  ))}
-                  {logs.out.length === 0 && (
-                    <div className="text-text-muted">No output</div>
-                  )}
-                </pre>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2 text-error-400">STDERR</h4>
-                <pre className="bg-bg-primary p-4 rounded-lg text-xs max-h-64 overflow-auto">
-                  {logs.error.slice(-30).map((line: string, i: number) => (
-                    <div key={i} className="log-line log-line-error">
-                      {line}
-                    </div>
-                  ))}
-                  {logs.error.length === 0 && (
-                    <div className="text-text-muted">No errors</div>
-                  )}
-                </pre>
-              </div>
-            </div>
+            <LogsTab logs={logs}></LogsTab>
           )}
         </>
       )}

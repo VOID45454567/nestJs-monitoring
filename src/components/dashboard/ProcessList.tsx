@@ -1,82 +1,89 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useProcessStore } from "@/store/process.store";
 import { useMachineStore } from "@/store/machine.store";
-import { useAppStore } from "@/store/app.store";
-import { createApiClient } from "@/lib/api/client";
-import { storage } from "@/lib/storage";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Button } from "@/components/ui/Button";
-import { formatMemory, formatUptime } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
+import { Box, Wifi, WifiOff } from "lucide-react";
+import { ProcessItem } from "../processList/ProcessItem";
 
 export const ProcessList = () => {
   const { selectedMachine } = useMachineStore();
-  const { processes, selectedProcess, setProcesses, setSelectedProcess } =
-    useProcessStore();
-  const { isClient } = useAppStore();
-  const [notifiedDowns, setNotifiedDowns] = useState<Set<string>>(new Set());
-
-  const fetchProcesses = async () => {
-    if (!isClient) return;
-    try {
-      const api = createApiClient(selectedMachine);
-      const procs = await api.getProcesses();
-      setProcesses(procs);
-      setNotifiedDowns(storage.getNotifiedDowns(selectedMachine.id));
-    } catch (err) {
-      console.error("Failed to fetch processes:", err);
-    }
-  };
+  const { getMachineData, selectedProcess, setSelectedProcess } = useProcessStore();
+  const machineData = getMachineData(selectedMachine.id);
+  const { processes, servicesHealth, wsConnected } = machineData;
 
   useEffect(() => {
-    fetchProcesses();
-    const interval = setInterval(fetchProcesses, 30000);
-    return () => clearInterval(interval);
-  }, [selectedMachine, isClient]);
+    setSelectedProcess(null);
+  }, [selectedMachine, setSelectedProcess]);
+
+
+  if (!selectedMachine.services || selectedMachine.services.length === 0) {
+    return (
+      <div className="card h-full animate-scale-in">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-bg-tertiary flex items-center justify-center">
+              <Box className="w-4 h-4 text-text-muted" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Processes</h3>
+              <p className="text-xs text-text-muted">{selectedMachine.name}</p>
+            </div>
+          </div>
+          <div className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+            wsConnected
+              ? "bg-success-500/10 text-success-400 border-success-500/20"
+              : "bg-error-500/10 text-error-400 border-error-500/20"
+          )}>
+            {wsConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+            {wsConnected ? "Live" : "Offline"}
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-bg-tertiary flex items-center justify-center">
+            <Box className="w-8 h-8 text-text-muted" />
+          </div>
+          <p className="text-text-muted text-sm font-medium">No services configured</p>
+          <p className="text-text-muted text-xs">Add services in machines.ts</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card h-full animate-scale-in">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Processes</h3>
-        <Button variant="ghost" size="sm" onClick={fetchProcesses}>
-          Refresh
-        </Button>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-bg-tertiary flex items-center justify-center">
+            <Box className="w-4 h-4 text-text-muted" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Processes</h3>
+            <p className="text-xs text-text-muted">{processes.length} total</p>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-1 max-h-150 overflow-y-auto">
-        {processes.map((process) => (
-          <div
-            key={process.id}
-            onClick={() => setSelectedProcess(process)}
-            className={cn(
-              "p-4 rounded-lg cursor-pointer transition-all duration-200",
-              "hover:bg-bg-elevated hover-lift",
-              selectedProcess?.id === process.id
-                ? "bg-primary-500/20 border-l-4 border-l-primary-500 shadow-glow"
-                : "bg-bg-tertiary/50 border-l-4 border-l-transparent",
-              notifiedDowns.has(process.name) && "border-l-error-500",
-            )}
-          >
-            <div className="font-medium mb-2">{process.name}</div>
-            <div className="text-xs space-y-1">
-              <div className="flex justify-between">
-                <StatusBadge status={process.status} />
-                <span className="text-text-secondary">PID: {process.pid}</span>
-              </div>
-              <div className="flex justify-between text-text-muted">
-                <span>CPU: {process.cpu.toFixed(1)}%</span>
-                <span>MEM: {formatMemory(process.memory)}</span>
-                <span>{formatUptime(process.uptime)}</span>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="space-y-3 max-h-[calc(100vh-24rem)] overflow-y-auto pr-1">
+        {processes.map(
+          (process, index) =>
+            <ProcessItem
+              key={index}
+              process={process}
+              selectedMachine={selectedMachine}
+              selectedProcessId={selectedProcess?.id}
+              servicesHealth={servicesHealth}
+              onSetSelectedPorcess={(process) => setSelectedProcess(process)}
+            >
+            </ProcessItem>
+        )}
 
         {processes.length === 0 && (
-          <div className="text-center py-8 text-text-muted animate-pulse-slow">
-            No processes found
+          <div className="text-center py-8 text-text-muted">
+            <Box className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No processes running</p>
           </div>
         )}
       </div>
