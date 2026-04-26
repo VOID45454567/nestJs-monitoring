@@ -1,70 +1,80 @@
-import { MachineConfig } from '@/config/machines';
+import { MachineConfig } from '@/conf/machines';
 import { Process, HealthReport, TestResult, EndpointCheckResult } from '@/types';
+import axios, { AxiosInstance } from 'axios';
 
 class ApiClient {
-    private baseUrl: string;
+    private client: AxiosInstance
 
     constructor(baseUrl: string) {
-        this.baseUrl = baseUrl;
-    }
+        this.client = axios.create({
+            baseURL: baseUrl,
+            timeout: 5000,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
 
-    private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, options);
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.statusText}`);
-        }
-        return response.json();
     }
 
     async getProcesses(): Promise<Process[]> {
-        const data = await this.request<{ processes: Process[] }>('/api/pm2/processes');
+        const { data } = await this.client.get<{ processes: Process[] }>('/api/pm2/processes');
         return data.processes || [];
     }
 
     async getHealth(processName: string): Promise<HealthReport> {
-        return this.request(`/api/pm2/health/${processName}`);
+        const { data } = await this.client.get<HealthReport>(`/api/pm2/health/${processName}`);
+        return data;
     }
 
     async getTests(pm2Id: number): Promise<TestResult> {
-        return this.request(`/api/tests/${pm2Id}`);
+        const { data } = await this.client.get<TestResult>(`/api/tests/${pm2Id}`);
+        return data;
     }
 
     async getLogs(pm2Id: number, lines: number = 50): Promise<{ out: string[]; error: string[] }> {
-        const data = await this.request<{ logs: { out: string[]; error: string[] } }>(
-            `/api/pm2/process/${pm2Id}?lines=${lines}`
+        const { data } = await this.client.get<{ logs: { out: string[]; error: string[] } }>(
+            `/api/pm2/process/${pm2Id}`,
+            { params: { lines } }
         );
         return data.logs || { out: [], error: [] };
     }
 
-    async processAction(pm2Id: number, action: 'start' | 'stop' | 'restart'): Promise<any> {
-        return this.request(`/api/pm2/process/${pm2Id}/${action}`, { method: 'POST' });
+    async processAction(pm2Id: number, action: 'start' | 'stop' | 'restart'): Promise<void> {
+        await this.client.post(`/api/pm2/process/${pm2Id}/${action}`);
     }
 
-    async checkEndpoint(endpoint: { url: string; method: string; expected_status_code: number }): Promise<EndpointCheckResult> {
+    async checkEndpoint(endpoint: {
+        url: string;
+        method: string;
+        expected_status_code: number;
+    }): Promise<EndpointCheckResult> {
         const start = Date.now();
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            const response = await fetch(endpoint.url, {
+        try {
+            const response = await axios({
                 method: endpoint.method,
-                signal: controller.signal,
+                url: endpoint.url,
+                timeout: 5000,
+                validateStatus: () => true,
             });
-            clearTimeout(timeoutId);
 
             return {
                 passed: response.status === endpoint.expected_status_code,
                 status: response.status,
                 duration: Date.now() - start,
+                timepstamp: new Date().toISOString(),
             };
         } catch (error: any) {
             return {
                 passed: false,
-                status: error.name === 'AbortError' ? 'TIMEOUT' : error.message,
+                status: error.code === 'ECONNABORTED' ? 'TIMEOUT' : error.message,
                 duration: Date.now() - start,
+                timepstamp: new Date().toISOString(),
             };
         }
     }
 }
 
-export const createApiClient = (machine: MachineConfig) => new ApiClient(machine.url);
+export const createApiClient = (machine: MachineConfig): ApiClient => {
+    return new ApiClient(machine.url)
+};

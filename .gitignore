@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# PM2 Monitor configuration (contains real credentials)
+src/conf/machines.ts
