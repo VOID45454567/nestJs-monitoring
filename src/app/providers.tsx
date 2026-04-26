@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "react-query";
 import { Toaster } from "react-hot-toast";
+import { useWebSocketManager } from "@/hooks/useWebSocketManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,9 +13,15 @@ const queryClient = new QueryClient({
   },
 });
 
+function WebSocketInit() {
+  useWebSocketManager();
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
+      <WebSocketInit />
       {children}
       <Toaster
         position="top-right"
