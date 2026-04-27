@@ -1,4 +1,4 @@
-import { APP_CONFIG, AppConfig, MachineConfig } from "./machines";
+import { APP_CONFIG } from "./machines";
 
 
 // ============================================================
@@ -9,6 +9,68 @@ import { APP_CONFIG, AppConfig, MachineConfig } from "./machines";
 // Скопируйте этот файл как machines.ts и заполните своими данными
 //
 // ============================================================
+
+
+export interface EndpointCheckConfig {
+    name: string;
+    url: string;
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+    expected_status_code: number;
+    headers?: Record<string, string>;
+    body?: any;
+}
+
+export interface ServiceConfig {
+    id: string;
+    name: string;
+    pm2ID: number;
+    pm2_process_name: string;
+    endpoints: EndpointCheckConfig[];
+    logs?: {
+        alert_on_error_patterns?: string[];
+    };
+    application_status: {
+        expected_status: string;
+    };
+}
+
+export interface SMTPConfig {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+        user: string;
+        pass: string;
+    };
+    from: string;
+    service?: 'gmail';
+    tls?: {
+        rejectUnauthorized: boolean;
+    };
+}
+
+export interface MachineConfig {
+    id: string;
+    name: string;
+    url: string;
+    wsUrl: string;
+    description?: string;
+    checkIntervalMs: number;
+    endpoints: EndpointCheckConfig[];
+    services: ServiceConfig[];
+    tags?: string[];
+}
+
+export interface AppConfig {
+    machines: MachineConfig[];
+    smtp: SMTPConfig;
+    settings: {
+        defaultCheckInterval: number;
+        maxRetries: number;
+        timeout: number;
+        digestInterval: number;
+    };
+}
 
 export const APP_CONFIG_EXZAMPLE: AppConfig = {
     smtp: {
