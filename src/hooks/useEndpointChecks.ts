@@ -3,7 +3,6 @@ import { useMachineStore } from '@/store/machine.store';
 import { useAppStore } from '@/store/app.store';
 import { createApiClient } from '@/lib/api/client';
 import { storage } from '@/lib/storage';
-import { sendEmail } from '@/lib/notification/email';
 import { EndpointCheckResult } from '@/types';
 
 export const useEndpointChecks = () => {
@@ -17,30 +16,11 @@ export const useEndpointChecks = () => {
 
         const api = createApiClient(selectedMachine);
         const newChecks = new Map(checks);
-        const previousCache = storage.getEndpointCheckCache(selectedMachine.id);
 
         for (const endpoint of selectedMachine.endpoints) {
             const result = await api.checkEndpoint(endpoint);
             const cacheKey = `${endpoint.method}:${endpoint.url}`;
-            const previousResult = previousCache.get(cacheKey);
-
             newChecks.set(cacheKey, result);
-
-            if (previousResult && previousResult.passed !== result.passed) {
-                const email = storage.getEmail();
-                if (email) {
-                    const subject = `[PM2 Monitor] Endpoint ${result.passed ? 'RECOVERED' : 'FAILED'} on ${selectedMachine.name}`;
-                    const body = `
-            <h2>Endpoint Status Change</h2>
-            <p><strong>Machine:</strong> ${selectedMachine.name}</p>
-            <p><strong>Endpoint:</strong> ${endpoint.name} (${endpoint.url})</p>
-            <p><strong>Status:</strong> ${result.passed ? '✅ Recovered' : '❌ Failed'}</p>
-            <p><strong>Response:</strong> ${result.status}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
-          `;
-                    await sendEmail(email, subject, body);
-                }
-            }
         }
 
         setChecks(newChecks);
