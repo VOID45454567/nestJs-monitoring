@@ -3,39 +3,29 @@ import { cn } from "@/utils/cn"
 import { formatMemory, formatUptime } from "@/utils/formatters";
 import { Box, Circle, Cpu, MemoryStick, Clock } from "lucide-react";
 import { StatusBadge } from "../ui/StatusBadge";
-import { MachineConfig } from "@/conf/machines";
 import { ServiceHealth } from "@/store/process.store";
 
 interface Props {
     process: Process
-    selectedMachine: MachineConfig,
     servicesHealth: Record<string, ServiceHealth>
-    onSetSelectedPorcess: (process: Process) => void
+    onSetSelectedProcess: (process: Process) => void
     selectedProcessId?: number
 }
 
-export const ProcessItem = ({ process, selectedMachine, servicesHealth, onSetSelectedPorcess, selectedProcessId }: Props) => {
+export const ProcessItem = ({ process, servicesHealth, onSetSelectedProcess, selectedProcessId }: Props) => {
     const getServiceHealthStatus = (processName: string) => {
-        const service = selectedMachine.services?.find(
-            s => s.pm2_process_name === processName
-        );
-        if (!service) return null;
-        return servicesHealth[service.id] || null;
+        return Object.values(servicesHealth).find(h => h.processName === processName) || null;
     };
 
-    const isServiceProcess = (processName: string) => {
-        return !!selectedMachine.services?.find(
-            s => s.pm2_process_name === processName
-        );
-    };
     const health = getServiceHealthStatus(process.name);
-    const isService = isServiceProcess(process.name);
     const isConnecting = process.status === "connecting";
     const isSelected = selectedProcessId === process.id;
+    const isStopped = process.status === "stopped" || process.status === "errored";
+
     return (
         <div
             key={process.id}
-            onClick={() => onSetSelectedPorcess(process)}
+            onClick={() => onSetSelectedProcess(process)}
             className={cn(
                 "group p-4 rounded-xl cursor-pointer transition-all duration-200 border",
                 isSelected
@@ -54,7 +44,7 @@ export const ProcessItem = ({ process, selectedMachine, servicesHealth, onSetSel
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <span className="font-medium text-sm truncate">{process.name}</span>
-                            {isService && (
+                            {health && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-primary-500/10 text-primary-400 border border-primary-500/20 flex-shrink-0">
                                     service
                                 </span>
@@ -63,7 +53,7 @@ export const ProcessItem = ({ process, selectedMachine, servicesHealth, onSetSel
                     </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {health && !isConnecting && (
+                    {health && !isConnecting && !isStopped && (
                         <Circle className={cn(
                             "w-2 h-2 fill-current",
                             health.status === "healthy" && "text-success-400",
@@ -76,7 +66,7 @@ export const ProcessItem = ({ process, selectedMachine, servicesHealth, onSetSel
                 </div>
             </div>
 
-            {health && health.summary && (
+            {health && health.summary && !isStopped && (
                 <div className="flex items-center gap-3 text-xs mb-2 ml-10">
                     <span className="text-text-muted">
                         Endpoints:{" "}
@@ -91,6 +81,12 @@ export const ProcessItem = ({ process, selectedMachine, servicesHealth, onSetSel
                             {health.summary.failed} failed
                         </span>
                     )}
+                </div>
+            )}
+
+            {isStopped && health && (
+                <div className="text-xs text-warning-400 ml-10 mb-2">
+                    Health checks paused
                 </div>
             )}
 
