@@ -1,21 +1,30 @@
-import { MachineConfig } from "@/conf/machines";
 import { ServiceHealth } from "@/store/process.store";
-import { EndpointExternalTestResult } from "@/types";
+
+export interface EndpointExternalTestResult {
+    serviceId: string;
+    serviceName: string;
+    processName: string;
+    name: string;
+    url: string;
+    method: string;
+    expected: number;
+    actual: number | string;
+    passed: boolean;
+    duration: number;
+}
 
 export const getAllEndpoints = (
-    selectedMachine: MachineConfig,
     servicesHealth: Record<string, ServiceHealth>
-) => {
+): EndpointExternalTestResult[] => {
     const results: EndpointExternalTestResult[] = [];
 
-    selectedMachine.services.forEach(service => {
-        const health = servicesHealth[service.id];
-        if (health && Array.isArray(health.endpoints)) {
+    Object.values(servicesHealth).forEach(health => {
+        if (health && Array.isArray(health.endpoints) && health.endpoints.length > 0) {
             health.endpoints.forEach(endpoint => {
                 results.push({
-                    serviceId: service.id,
-                    serviceName: service.name,
-                    processName: service.pm2_process_name,
+                    serviceId: health.serviceId,
+                    serviceName: health.processName,
+                    processName: health.processName,
                     name: endpoint.name,
                     url: endpoint.url,
                     method: "GET",
@@ -25,23 +34,8 @@ export const getAllEndpoints = (
                     duration: endpoint.duration,
                 });
             });
-        } else {
-            service.endpoints.forEach(endpoint => {
-                results.push({
-                    serviceId: service.id,
-                    serviceName: service.name,
-                    processName: service.pm2_process_name,
-                    name: endpoint.name,
-                    url: endpoint.url,
-                    method: endpoint.method,
-                    expected: endpoint.expected_status_code,
-                    actual: "pending",
-                    passed: false,
-                    duration: 0,
-                });
-            });
         }
     });
 
     return results;
-}
+};

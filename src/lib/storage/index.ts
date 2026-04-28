@@ -36,40 +36,4 @@ export const storage = {
         downs.delete(processName);
         localStorage.setItem(key, JSON.stringify([...downs]));
     },
-
-    getLastTestResults: (machineId: string): any => {
-        try {
-            const key = `pm2_last_tests_${machineId}`;
-            return JSON.parse(localStorage.getItem(key) || '{}');
-        } catch {
-            return {};
-        }
-    },
-    setLastTestResults: (machineId: string, results: any) => {
-        const key = `pm2_last_tests_${machineId}`;
-        localStorage.setItem(key, JSON.stringify(results));
-    },
-
-    getLastDigestTime: (machineId: string): number => {
-        const key = `pm2_last_digest_${machineId}`;
-        return Number(localStorage.getItem(key)) || 0;
-    },
-    setLastDigestTime: (machineId: string, time: number) => {
-        const key = `pm2_last_digest_${machineId}`;
-        localStorage.setItem(key, String(time));
-    },
-
-    getEndpointCheckCache: (machineId: string): Map<string, { passed: boolean; timestamp: number }> => {
-        try {
-            const key = `pm2_endpoint_cache_${machineId}`;
-            const data = JSON.parse(localStorage.getItem(key) || '[]');
-            return new Map(data);
-        } catch {
-            return new Map();
-        }
-    },
-    setEndpointCheckCache: (machineId: string, cache: Map<string, { passed: boolean; timestamp: number }>) => {
-        const key = `pm2_endpoint_cache_${machineId}`;
-        localStorage.setItem(key, JSON.stringify([...cache.entries()]));
-    },
 };

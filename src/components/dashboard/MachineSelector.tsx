@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { useMachineStore } from "@/store/machine.store";
-import { Server, RefreshCw } from "lucide-react";
+import { Server } from "lucide-react";
 import { MachineItem } from "../machineSelector/MachineItem";
-
 
 export const MachineSelector = () => {
     const {
@@ -12,14 +10,7 @@ export const MachineSelector = () => {
         selectedMachine,
         machinesStatus,
         setSelectedMachine,
-        checkAllMachinesHealth
     } = useMachineStore();
-
-    useEffect(() => {
-        checkAllMachinesHealth();
-        const interval = setInterval(checkAllMachinesHealth, 30000);
-        return () => clearInterval(interval);
-    }, []);
 
     return (
         <div className="glass-effect p-6 animate-fade-in">
@@ -33,13 +24,6 @@ export const MachineSelector = () => {
                         <p className="text-xs text-text-muted">{machines.length} configured</p>
                     </div>
                 </div>
-                <button
-                    onClick={checkAllMachinesHealth}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-tertiary text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-all duration-200"
-                >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh
-                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -49,7 +33,7 @@ export const MachineSelector = () => {
                             machine={machine}
                             machinesStatus={machinesStatus}
                             selectedMachine={selectedMachine}
-                            onSetSelectedMacine={(id) => setSelectedMachine(id)}
+                            onSetSelectedMachine={(id) => setSelectedMachine(id)}
                             key={index}
                         >
                         </MachineItem>

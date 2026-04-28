@@ -64,7 +64,7 @@ export interface EndpointCheckResult {
     passed: boolean;
     status: number | string;
     duration: number;
-    timepstamp: string
+    timestamp: string
 }
 
 export enum WSEventType {

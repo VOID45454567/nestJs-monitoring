@@ -4,25 +4,13 @@ import { useWebSocketStore } from "@/store/websocket.store";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { storage } from "@/lib/storage";
-import { sendTestEmail, validateSMTPConfig } from "@/lib/notification/email";
 import { cn } from "@/utils/cn";
 import { Activity, Mail, Save, Send, Server, Wifi, WifiOff } from "lucide-react";
 
 export const Header = () => {
-  const { email, setEmail } = useAppStore();
   const { selectedMachine } = useMachineStore();
   const { machinesStatus } = useWebSocketStore();
   const wsStatus = machinesStatus[selectedMachine.id] || 'disconnected';
-
-  const handleSaveEmail = () => {
-    storage.setEmail(email);
-  };
-
-  const handleTestEmail = async () => {
-    if (!email) return;
-    if (!validateSMTPConfig()) return;
-    await sendTestEmail(email);
-  };
 
   return (
     <header className="glass-effect p-6 animate-fade-in">
@@ -61,28 +49,6 @@ export const Header = () => {
             <span>{wsStatus === "connected" ? "Connected" : "Disconnected"}</span>
           </div>
 
-          <div className="flex gap-2">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-              <Input
-                type="email"
-                value={email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEmail(e.target.value)
-                }
-                placeholder="Email for notifications"
-                className="w-56 pl-9"
-              />
-            </div>
-            <Button onClick={handleSaveEmail} size="sm">
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
-            <Button variant="secondary" size="sm" onClick={handleTestEmail}>
-              <Send className="w-4 h-4" />
-              Test
-            </Button>
-          </div>
         </div>
       </div>
     </header>

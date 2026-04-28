@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Process, HealthReport, TestResult } from '@/types';
+import { Process } from '@/types';
 
 export interface ServiceEndpoint {
     name: string;
@@ -33,8 +33,6 @@ interface MachineProcessData {
 interface ProcessState {
     machinesData: Record<string, MachineProcessData>;
     selectedProcess: Process | null;
-    health: HealthReport | null;
-    tests: TestResult | null;
     logs: Logs;
     loading: boolean;
 
@@ -46,8 +44,6 @@ interface ProcessState {
     setMachineConnected: (machineId: string, connected: boolean) => void;
 
     setSelectedProcess: (process: Process | null) => void;
-    setHealth: (health: HealthReport | null) => void;
-    setTests: (tests: TestResult | null) => void;
     setLogs: (logs: { out: string[]; error: string[] }) => void;
     setLoading: (loading: boolean) => void;
 }
@@ -61,8 +57,6 @@ const getDefaultMachineData = (): MachineProcessData => ({
 export const useProcessStore = create<ProcessState>((set, get) => ({
     machinesData: {},
     selectedProcess: null,
-    health: null,
-    tests: null,
     logs: { out: [], error: [] },
     loading: false,
 
@@ -125,8 +119,6 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
         })),
 
     setSelectedProcess: (process) => set({ selectedProcess: process }),
-    setHealth: (health) => set({ health }),
-    setTests: (tests) => set({ tests }),
     setLogs: (logs) => set({ logs }),
     setLoading: (loading) => set({ loading }),
 }));

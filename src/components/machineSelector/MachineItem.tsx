@@ -1,16 +1,17 @@
 import { MachineConfig } from "@/conf/machines"
 import { MachineStatus } from "@/store/machine.store"
 import { cn } from "@/utils/cn"
-import { AlertTriangle, HardDrive, Loader2, Monitor, Server, Tag, Wifi, WifiOff } from "lucide-react"
+import { HardDrive, Loader2, Monitor, Server, Wifi, WifiOff, AlertTriangle } from "lucide-react"
+import React from "react";
 
 interface Props {
     machine: MachineConfig
-    onSetSelectedMacine: (id: string) => void
+    onSetSelectedMachine: (id: string) => void
     selectedMachine: MachineConfig
     machinesStatus: Map<String, MachineStatus>
 }
 
-export const MachineItem = ({ machine, onSetSelectedMacine, selectedMachine, machinesStatus }: Props) => {
+export const MachineItem = ({ machine, onSetSelectedMachine, selectedMachine, machinesStatus }: Props) => {
 
     const machineIcons: Record<string, React.ReactNode> = {
         development: <Monitor className="w-4 h-4" />,
@@ -51,7 +52,7 @@ export const MachineItem = ({ machine, onSetSelectedMacine, selectedMachine, mac
             case 'connected': return 'Online';
             case 'error': return 'Offline';
             case 'checking': return 'Checking';
-            default: return 'Unknown';
+            default: return 'Not found';
         }
     };
     const primaryTag = machine.tags?.[0] || 'development';
@@ -59,7 +60,7 @@ export const MachineItem = ({ machine, onSetSelectedMacine, selectedMachine, mac
     return (
         <div
             key={machine.id}
-            onClick={() => onSetSelectedMacine(machine.id)}
+            onClick={() => onSetSelectedMachine(machine.id)}
             className={cn(
                 "group p-4 rounded-xl cursor-pointer transition-all duration-300 border",
                 selectedMachine.id === machine.id
@@ -97,12 +98,6 @@ export const MachineItem = ({ machine, onSetSelectedMacine, selectedMachine, mac
                 </div>
 
                 <div className="flex items-center gap-3 text-xs text-text-muted">
-                    {machine.services && machine.services.length > 0 && (
-                        <span className="flex items-center gap-1">
-                            <Tag className="w-3 h-3" />
-                            {machine.services.length}
-                        </span>
-                    )}
                     {machine.description && (
                         <span className="truncate max-w-[100px]">{machine.description}</span>
                     )}

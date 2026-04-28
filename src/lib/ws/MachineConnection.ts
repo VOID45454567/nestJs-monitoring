@@ -5,6 +5,7 @@ import { WSEventType, WSMessage } from "@/types";
 import { sendEmail } from "../notification/email";
 import { storage } from "../storage";
 import { buildEndpointsDegradedBody, buildEndpointsDegradedSubject, buildEndpointsRecoveredBody, buildEndpointsRecoveredSubject, buildProcessDownBody, buildProcessDownSubject } from "../notification/email/getHtmlBody";
+import {APP_CONFIG} from "@/conf/machines";
 
 export class MachineConnection {
     ws: WebSocket | null = null;
@@ -34,6 +35,7 @@ export class MachineConnection {
                 if (!this.mounted) { this.ws?.close(); return; }
                 this.reconnectAttempts = 0;
                 useWebSocketStore.getState().setMachineConnected(this.machineId, true);
+                useMachineStore.getState().setMachineStatus(this.machineId, 'connected');
 
                 this.ws?.send(JSON.stringify({
                     event: WSEventType.APP_INIT,
@@ -52,6 +54,8 @@ export class MachineConnection {
             this.ws.onclose = (event) => {
                 if (!this.mounted) return;
                 useWebSocketStore.getState().setMachineConnected(this.machineId, false);
+                useMachineStore.getState().setMachineStatus(this.machineId, 'error');
+                useProcessStore.getState().setMachineConnected(this.machineId, false);
                 this.ws = null;
 
                 if (event.code !== 1000) {
@@ -63,6 +67,7 @@ export class MachineConnection {
 
             this.ws.onerror = () => {
                 useWebSocketStore.getState().setMachineConnected(this.machineId, false);
+                useMachineStore.getState().setMachineStatus(this.machineId, 'error');
             };
         } catch {
             this.reconnectAttempts++;
@@ -95,7 +100,7 @@ export class MachineConnection {
                 break;
 
             case WSEventType.SERVICE_HEALTH_REPORT:
-                if (message.data && message.data.summary) {
+                if (message.data) {
                     store.setMachineServiceHealth(this.machineId, message.data.serviceId, message.data);
                     this.notifyEndpointsDown(message.data, machine.name);
                 }
@@ -104,7 +109,7 @@ export class MachineConnection {
     }
 
     private async notifyProcessDown(data: any, machineName: string) {
-        const email = storage.getEmail();
+        const email = APP_CONFIG.machines.find(m => m.name === machineName)?.adminEmail;
         if (!email || data.processName === 'unknown') return;
 
         if (data.newStatus === 'stopped' || data.newStatus === 'errored') {
@@ -130,7 +135,7 @@ export class MachineConnection {
     }
 
     private async notifyEndpointsDown(data: any, machineName: string) {
-        const email = storage.getEmail();
+        const email = APP_CONFIG.machines.find(m => m.name === machineName)?.adminEmail;
         if (!email || !data.summary) return;
 
         if (data.pm2Status === 'stopped' || data.pm2Status === 'errored') return;
