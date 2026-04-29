@@ -32,6 +32,7 @@ export const APP_CONFIG: AppConfig = {
         {
             id: 'local',
             name: 'Local Development',
+            adminEmail: 'test@email.com',
             url: 'http://localhost:3000',    // REST API бэкенда
             wsUrl: 'ws://localhost:3000',    // WebSocket бэкенда
             checkIntervalMs: 15 * 60 * 1000,
