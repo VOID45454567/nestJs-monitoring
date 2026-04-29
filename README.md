@@ -35,33 +35,6 @@ export const APP_CONFIG: AppConfig = {
             url: 'http://localhost:3000',    // REST API бэкенда
             wsUrl: 'ws://localhost:3000',    // WebSocket бэкенда
             checkIntervalMs: 15 * 60 * 1000,
-            endpoints: [
-                {
-                    name: 'Health Check',
-                    url: 'http://localhost:3000/health',
-                    method: 'GET',
-                    expected_status_code: 200,
-                },
-            ],
-            services: [
-                {
-                    pm2ID: 0,
-                    id: 'server-one',
-                    name: 'server-one',
-                    pm2_process_name: 'server-one',
-                    application_status: {
-                        expected_status: "online",
-                    },
-                    endpoints: [
-                        {
-                            name: 'Main Page',
-                            url: 'http://localhost:3005',
-                            method: 'GET',
-                            expected_status_code: 200,
-                        },
-                    ],
-                },
-            ],
         },
     ],
 };
